@@ -7,32 +7,37 @@
 
   var sideHub = document.getElementById('side-hub');
   var sideDrivstoff = document.getElementById('side-drivstoff');
-  var sideStjerner = document.getElementById('side-stjerner');
+  var sideStjernerGrid = document.getElementById('side-stjerner-grid');
+  var sideStjernerSpill = document.getElementById('side-stjerner-spill');
+
+  function skjulAlle() {
+    sideHub.classList.add('skjult');
+    sideDrivstoff.classList.add('skjult');
+    sideStjernerGrid.classList.add('skjult');
+    sideStjernerSpill.classList.add('skjult');
+  }
 
   function visHub() {
-    sideDrivstoff.classList.add('skjult');
-    sideStjerner.classList.add('skjult');
+    skjulAlle();
     sideHub.classList.remove('skjult');
   }
 
   function visDrivstoff() {
-    sideHub.classList.add('skjult');
-    sideStjerner.classList.add('skjult');
+    skjulAlle();
     sideDrivstoff.classList.remove('skjult');
     AppDrivstoff.apne();
   }
 
-  function visStjerner() {
-    sideHub.classList.add('skjult');
-    sideDrivstoff.classList.add('skjult');
-    sideStjerner.classList.remove('skjult');
-    AppStjerner.apne();
+  function visStjernerGrid() {
+    skjulAlle();
+    sideStjernerGrid.classList.remove('skjult');
+    AppStjerner.apneGrid();
   }
 
   document.getElementById('knappStartDrivstoff').addEventListener('click', visDrivstoff);
-  document.getElementById('knappStartStjerner').addEventListener('click', visStjerner);
+  document.getElementById('knappStartStjerner').addEventListener('click', visStjernerGrid);
   document.getElementById('knappTilbakeDrivstoff').addEventListener('click', visHub);
-  document.getElementById('knappTilbakeStjerner').addEventListener('click', visHub);
+  document.getElementById('knappTilbakeGrid').addEventListener('click', visHub);
 
   var knappLyd = document.getElementById('knappLydHub');
   var lydBuer = document.getElementById('lydBuer');

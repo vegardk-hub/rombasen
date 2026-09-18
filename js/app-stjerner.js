@@ -1,8 +1,10 @@
 /*
  * Stjernesamling – grensesnittet.
  *
- * Trykk på en stjerne i bakken, og så på kurven med samme farge. Feil kurv
- * rister bare litt og lar en velge på nytt – akkurat som i drivstoffspillet.
+ * To skjermer: et rutenett der hun velger ett av de tolv stjernetegnene,
+ * og selve spillet der løse stjerner i bakken skal trykkes på plass i
+ * stjernebildet. Samme velg-og-treff-mønster som drivstoffspillet: feil
+ * plass rister bare litt og lar en velge på nytt.
  */
 'use strict';
 
@@ -11,116 +13,148 @@ var AppStjerner = (function () {
   var Spill = SpillStjerner;
   var Lyd = Felles.Lyd;
   var GEM = 'M0,-11 C1,-4 1,-4 11,0 C1,4 1,4 0,11 C-1,4 -1,4 -11,0 C-1,-4 -1,-4 0,-11 Z';
+  var GLIMT = 'M0,-4 C0.3,-1.2 0.3,-1.2 4,0 C0.3,1.2 0.3,1.2 0,4 C-0.3,1.2 -0.3,1.2 -4,0 C-0.3,-1.2 -0.3,-1.2 0,-4 Z';
 
-  var initialisert = false;
+  var sideGrid = document.getElementById('side-stjerner-grid');
+  var sideSpill = document.getElementById('side-stjerner-spill');
+  var konstEl = document.getElementById('konstellasjon');
+  var bakkeBoks = document.getElementById('bakkeBoks');
+  var tittelEl = document.getElementById('stjernetegnTittel');
 
   var tilstand = {
-    nivaa: 1,
-    kurver: [],
+    tegnId: null,
+    navn: '',
+    punkter: [],
+    strok: [],
     bakke: [],
     historikk: [],
     valgt: null,
     laast: false
   };
 
-  var side = document.getElementById('side-stjerner');
-  var kurveRad = document.getElementById('kurveRad');
-  var bakkeBoks = document.getElementById('bakkeBoks');
-  var elKurver = [], elStjerner = {};
+  var elPunkter = [], elStjerner = {};
 
   Felles.lagGemDefs(Spill.FARGER);
 
-  /* ---------- oppsett av nivå ---------- */
+  function glimtSvg(cx, cy, forsinkelse) {
+    return '<path class="glimt" style="animation-delay:' + forsinkelse + 's" transform="translate(' + cx + ',' + cy + ')" d="' + GLIMT + '" fill="#ffffff"/>';
+  }
 
-  function startNivaa(n) {
-    var nivaa = Spill.lagNivaa(n);
-    tilstand.nivaa = n;
-    tilstand.kurver = nivaa.kurver;
+  /* ================= rutenett ================= */
+
+  function tegnMiniSvg(tegn) {
+    var svg = '<svg viewBox="0 0 200 200" class="tegn-mini" aria-hidden="true">';
+    tegn.strok.forEach(function (kjede) {
+      var pts = kjede.map(function (i) { return tegn.punkter[i][0] + ',' + tegn.punkter[i][1]; }).join(' ');
+      svg += '<polyline points="' + pts + '"/>';
+    });
+    tegn.punkter.forEach(function (p) {
+      svg += '<circle cx="' + p[0] + '" cy="' + p[1] + '" r="7"/>';
+    });
+    svg += '</svg>';
+    return svg;
+  }
+
+  function tegnGrid() {
+    var container = document.getElementById('tegnGrid');
+    container.innerHTML = '';
+    Spill.TEGN.forEach(function (tegn) {
+      var fullfort = !!Felles.data.stjerner.fullfort[tegn.id];
+      var el = document.createElement('button');
+      el.className = 'tegn-kort glass' + (fullfort ? ' fullfort' : '');
+      el.innerHTML = tegnMiniSvg(tegn) +
+        '<div class="tegn-navn">' + tegn.navn + '</div>' +
+        (fullfort ? '<svg class="tegn-merke" viewBox="0 0 46 46" aria-hidden="true"><path d="M23,3 C25,15 25,15 40,20 C25,25 25,25 23,40 C21,25 21,25 6,20 C21,15 21,15 23,3 Z" fill="#ffc857"/></svg>' : '');
+      el.setAttribute('aria-label', tegn.navn + (fullfort ? ', fullført' : ''));
+      el.addEventListener('click', function () { velgTegn(tegn.id); });
+      container.appendChild(el);
+    });
+  }
+
+  function apneGrid() {
+    sideSpill.classList.add('skjult');
+    sideGrid.classList.remove('skjult');
+    tegnGrid();
+  }
+
+  function velgTegn(id) {
+    sideGrid.classList.add('skjult');
+    sideSpill.classList.remove('skjult');
+    startTegn(id);
+  }
+
+  /* ================= spillskjermen ================= */
+
+  function startTegn(id) {
+    var nivaa = Spill.lagNivaa(id);
+    tilstand.tegnId = nivaa.id;
+    tilstand.navn = nivaa.navn;
+    tilstand.punkter = nivaa.punkter;
+    tilstand.strok = nivaa.strok;
     tilstand.bakke = nivaa.bakke;
     tilstand.historikk = [];
     tilstand.valgt = null;
     tilstand.laast = false;
-    Felles.data.stjerner.sisteNivaa = n;
-    Felles.lagreData();
-    document.getElementById('nivaaTallStjerner').textContent = n;
-    visTips(n === 1 ? 'Trykk på en stjerne, og så på riktig kurv 👆' : '');
+    tittelEl.textContent = nivaa.navn;
+    visTips('Trykk på en stjerne, og så på riktig plass i stjernebildet 👆');
     tegn();
     oppdaterKnapper();
   }
 
   function startPaaNytt() {
     if (tilstand.laast) return;
-    var nivaa = Spill.lagNivaa(tilstand.nivaa);
-    tilstand.kurver = nivaa.kurver;
-    tilstand.bakke = nivaa.bakke;
-    tilstand.historikk = [];
-    tilstand.valgt = null;
-    Lyd.slipp();
-    tegn();
-    oppdaterKnapper();
+    startTegn(tilstand.tegnId);
   }
 
-  /* ---------- tegning ---------- */
-
-  function posisjoner(k) {
-    var pts = [];
-    var step = k > 1 ? 64 / (k - 1) : 0;
-    for (var i = 0; i < k; i++) {
-      var x = 16 + i * step;
-      var y = 48 + (k > 1 ? (i % 2 === 0 ? -15 : 15) : 0);
-      pts.push([x, y]);
-    }
-    return pts;
-  }
-
-  function lagKurveSvg(kurv) {
-    var pts = posisjoner(kurv.kapasitet);
-    var linje = pts.map(function (p) { return p[0] + ',' + p[1]; }).join(' ');
-    var html = '<svg viewBox="0 0 96 96">' +
-      '<polyline points="' + linje + '" fill="none" stroke="#7c8fc4" stroke-width="2" stroke-dasharray="1 7" stroke-linecap="round" opacity="0.7"/>';
-    pts.forEach(function (p, i) {
-      if (i < kurv.fylt) {
-        html += '<g transform="translate(' + p[0] + ',' + p[1] + ')" style="filter: drop-shadow(0 3px 3px rgba(0,0,0,.4))">' +
-          '<path d="' + GEM.replace(/[-\d.]+/g, function (num) { return (parseFloat(num) * 1.4).toFixed(1); }) + '" fill="url(#gem-' + kurv.farge + ')"/></g>';
+  function lagKonstellasjonSvg() {
+    var html = '<svg viewBox="0 0 200 200" class="konst-svg" aria-hidden="true">';
+    tilstand.strok.forEach(function (kjede) {
+      var pts = kjede.map(function (i) {
+        var p = tilstand.punkter[i];
+        return p.x + ',' + p.y;
+      }).join(' ');
+      html += '<polyline class="konst-linje" points="' + pts + '"/>';
+    });
+    tilstand.punkter.forEach(function (p, i) {
+      if (p.fylt) {
+        html += '<g class="punkt punkt-fylt" transform="translate(' + p.x + ',' + p.y + ')">' +
+          '<path d="' + GEM + '" fill="url(#gem-' + p.farge + ')" style="filter: drop-shadow(0 0 5px rgba(255,255,255,.5))"/>' +
+          glimtSvg(-4, -4, (i % 5) * 0.3) +
+          '</g>';
       } else {
-        html += '<circle class="slot" cx="' + p[0] + '" cy="' + p[1] + '" r="10"/>';
+        html += '<g class="punkt punkt-tom" data-i="' + i + '" transform="translate(' + p.x + ',' + p.y + ')">' +
+          '<circle class="traff" r="16"/>' +
+          '<circle class="slot" r="9"/>' +
+          '</g>';
       }
     });
     html += '</svg>';
     return html;
   }
 
-  function tegnKurver() {
-    kurveRad.innerHTML = '';
-    elKurver = [];
-    tilstand.kurver.forEach(function (kurv, i) {
-      var el = document.createElement('button');
-      el.className = 'kurve';
-      if (kurv.fylt >= kurv.kapasitet) el.classList.add('full');
-      el.innerHTML = lagKurveSvg(kurv) +
-        '<div class="kurve-tekst" style="color:' + Felles.juster(Spill.FARGER[kurv.farge].lys, 0.4) + '">' +
-        kurv.fylt + ' av ' + kurv.kapasitet + ' ' + Spill.FARGER[kurv.farge].navn + '</div>';
-      el.addEventListener('click', function () { klikkKurve(i); });
-      kurveRad.appendChild(el);
-      elKurver[i] = el;
+  function tegnKonstellasjon() {
+    konstEl.innerHTML = lagKonstellasjonSvg();
+    elPunkter = {};
+    konstEl.querySelectorAll('.punkt-tom').forEach(function (g) {
+      var i = Number(g.dataset.i);
+      elPunkter[i] = g;
+      g.addEventListener('click', function () { klikkPunkt(i); });
     });
   }
 
   function tegnBakke() {
     bakkeBoks.innerHTML = '';
     elStjerner = {};
-    tilstand.bakke.forEach(function (st) {
+    tilstand.bakke.forEach(function (st, idx) {
       var el = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
-      el.setAttribute('viewBox', '0 0 24 24');
+      el.setAttribute('viewBox', '-14 -14 28 28');
       el.setAttribute('class', 'stjerne' + (tilstand.valgt === st.id ? ' valgt' : ''));
       el.dataset.id = st.id;
       el.setAttribute('role', 'button');
       el.setAttribute('tabindex', '0');
       el.setAttribute('aria-label', Spill.FARGER[st.farge].navn + ' stjerne');
-      var p = document.createElementNS('http://www.w3.org/2000/svg', 'path');
-      p.setAttribute('d', 'M12,1 C13,7 13,7 23,12 C13,17 13,17 12,23 C11,17 11,17 1,12 C11,7 11,7 12,1 Z');
-      p.setAttribute('fill', 'url(#gem-' + st.farge + ')');
-      el.appendChild(p);
+      el.innerHTML = '<path d="' + GEM + '" fill="url(#gem-' + st.farge + ')" style="filter: drop-shadow(0 0 4px rgba(255,255,255,.5))"/>' +
+        glimtSvg(-4, -4, (idx % 5) * 0.3);
       el.addEventListener('click', function () { klikkStjerne(st.id); });
       el.addEventListener('keydown', function (e) {
         if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); klikkStjerne(st.id); }
@@ -131,7 +165,7 @@ var AppStjerner = (function () {
   }
 
   function tegn() {
-    tegnKurver();
+    tegnKonstellasjon();
     tegnBakke();
   }
 
@@ -151,14 +185,14 @@ var AppStjerner = (function () {
     tegnBakke();
   }
 
-  function klikkKurve(i) {
+  function klikkPunkt(i) {
     if (tilstand.laast) return;
-    if (tilstand.valgt === null) { rist(elKurver[i]); return; }
+    var punkt = tilstand.punkter[i];
+    if (tilstand.valgt === null) { rist(elPunkter[i]); return; }
     var st = tilstand.bakke.find(function (s) { return s.id === tilstand.valgt; });
-    var kurv = tilstand.kurver[i];
     if (!st) { tilstand.valgt = null; return; }
-    if (kurv.fylt >= kurv.kapasitet || kurv.farge !== st.farge) {
-      rist(elKurver[i]);
+    if (punkt.farge !== st.farge) {
+      rist(elPunkter[i]);
       Lyd.nei();
       tilstand.valgt = null;
       tegnBakke();
@@ -170,24 +204,24 @@ var AppStjerner = (function () {
   function rist(el) {
     if (!el) return;
     el.classList.remove('rist');
-    void el.offsetWidth;
+    void el.getBoundingClientRect();
     el.classList.add('rist');
     setTimeout(function () { el.classList.remove('rist'); }, 340);
   }
 
   /* ---------- flytting ---------- */
 
-  function flytt(st, kurvIndeks) {
+  function flytt(st, punktIndeks) {
     tilstand.laast = true;
     tilstand.historikk.push({
-      kurver: tilstand.kurver.map(function (k) { return { farge: k.farge, kapasitet: k.kapasitet, fylt: k.fylt }; }),
+      punkter: tilstand.punkter.map(function (p) { return { x: p.x, y: p.y, farge: p.farge, fylt: p.fylt }; }),
       bakke: tilstand.bakke.map(function (s) { return { id: s.id, farge: s.farge }; })
     });
     tilstand.valgt = null;
     skjulTips();
 
-    var eSt = elStjerner[st.id], eKurv = elKurver[kurvIndeks];
-    var rSt = eSt.getBoundingClientRect(), rKurv = eKurv.getBoundingClientRect();
+    var eSt = elStjerner[st.id], eMaal = elPunkter[punktIndeks];
+    var rSt = eSt.getBoundingClientRect(), rMaal = eMaal.getBoundingClientRect();
 
     var klon = eSt.cloneNode(true);
     klon.classList.remove('valgt');
@@ -198,25 +232,20 @@ var AppStjerner = (function () {
     eSt.classList.add('borte');
 
     void klon.offsetWidth;
-    klon.style.left = (rKurv.left + rKurv.width / 2 - rSt.width / 2) + 'px';
-    klon.style.top = (rKurv.top + rKurv.height / 2 - rSt.height / 2) + 'px';
-    klon.style.transform = 'scale(0.5)';
-    klon.style.opacity = '0';
+    klon.style.left = (rMaal.left + rMaal.width / 2 - rSt.width / 2) + 'px';
+    klon.style.top = (rMaal.top + rMaal.height / 2 - rSt.height / 2) + 'px';
+    klon.style.transform = 'scale(1.1)';
     Lyd.hell();
 
     setTimeout(function () {
       klon.remove();
       tilstand.bakke = tilstand.bakke.filter(function (s) { return s.id !== st.id; });
-      var kurv = tilstand.kurver[kurvIndeks];
-      kurv.fylt++;
-      var blePlutseligFull = kurv.fylt === kurv.kapasitet;
+      tilstand.punkter[punktIndeks].fylt = true;
       tegn();
-      if (blePlutseligFull) {
-        elKurver[kurvIndeks].classList.add('nyferdig');
-        Lyd.ferdig();
-      }
-      if (Spill.erFerdig(tilstand.kurver)) {
-        setTimeout(visSeier, blePlutseligFull ? 550 : 250);
+      Lyd.plukk();
+
+      if (Spill.erFerdig(tilstand.punkter)) {
+        setTimeout(visSeier, 300);
       } else {
         tilstand.laast = false;
         oppdaterKnapper();
@@ -227,7 +256,7 @@ var AppStjerner = (function () {
   function angre() {
     if (tilstand.laast || !tilstand.historikk.length) return;
     var forrige = tilstand.historikk.pop();
-    tilstand.kurver = forrige.kurver;
+    tilstand.punkter = forrige.punkter;
     tilstand.bakke = forrige.bakke;
     tilstand.valgt = null;
     Lyd.slipp();
@@ -243,22 +272,20 @@ var AppStjerner = (function () {
 
   function hint() {
     if (tilstand.laast) return;
-    var kandidat = null, kurvIndeks = -1;
-    for (var i = 0; i < tilstand.kurver.length && !kandidat; i++) {
-      var kurv = tilstand.kurver[i];
-      if (kurv.fylt >= kurv.kapasitet) continue;
-      var st = tilstand.bakke.find(function (s) { return s.farge === kurv.farge; });
-      if (st) { kandidat = st; kurvIndeks = i; }
+    var maal = -1;
+    for (var i = 0; i < tilstand.punkter.length; i++) {
+      if (!tilstand.punkter[i].fylt) { maal = i; break; }
     }
-    if (!kandidat) {
-      visTips('Det er ikke flere trekk igjen 🙂');
-      return;
-    }
-    tilstand.valgt = kandidat.id;
+    if (maal === -1) return;
+    var farge = tilstand.punkter[maal].farge;
+    var st = tilstand.bakke.find(function (s) { return s.farge === farge; });
+    if (!st) return;
+
+    tilstand.valgt = st.id;
     tegnBakke();
-    elKurver[kurvIndeks].classList.add('peker');
-    setTimeout(function () { elKurver[kurvIndeks].classList.remove('peker'); }, 4600);
-    visTips('Trykk på kurven som lyser opp 👀');
+    elPunkter[maal].classList.add('peker');
+    setTimeout(function () { elPunkter[maal] && elPunkter[maal].classList.remove('peker'); }, 4600);
+    visTips('Trykk på plassen som lyser opp 👀');
   }
 
   /* ---------- tips ---------- */
@@ -275,62 +302,54 @@ var AppStjerner = (function () {
   var seier = document.getElementById('seierStjerner');
 
   function visSeier() {
-    if (tilstand.nivaa + 1 > Felles.data.stjerner.opplaast) {
-      Felles.data.stjerner.opplaast = tilstand.nivaa + 1;
-    }
+    Felles.data.stjerner.fullfort[tilstand.tegnId] = true;
     Felles.lagreData();
+    document.getElementById('seierTittelStjerner').textContent = 'Bra jobba!';
     document.getElementById('seierTekstStjerner').textContent =
-      'Nivå ' + tilstand.nivaa + ' er ferdig. Alle stjernebildene er fylt opp!';
+      'Du fylte hele ' + tilstand.navn.toLowerCase() + '!';
     seier.classList.remove('skjult');
-    konfetti();
+    glitterfeiring();
     Lyd.seier();
+
+    setTimeout(function () {
+      Felles.siNavn(tilstand.navn);
+    }, 2300);
+  }
+
+  function glitterfeiring() {
+    konfetti();
+    var boks = document.getElementById('glitterStjerner');
+    boks.innerHTML = '';
+    var farger = Spill.FARGER;
+    for (var i = 0; i < 26; i++) {
+      var vinkel = Math.random() * Math.PI * 2;
+      var avstand = 90 + Math.random() * 170;
+      var tx = (Math.cos(vinkel) * avstand).toFixed(0) + 'px';
+      var ty = (Math.sin(vinkel) * avstand).toFixed(0) + 'px';
+      var farge = farger[i % farger.length];
+      var el = document.createElement('div');
+      el.className = 'burst-stjerne';
+      el.style.setProperty('--tx', tx);
+      el.style.setProperty('--ty', ty);
+      el.style.animationDelay = (Math.random() * 0.35).toFixed(2) + 's';
+      el.innerHTML = '<svg viewBox="-11 -11 22 22"><path d="' + GEM + '" fill="' + farge.lys + '"/></svg>';
+      boks.appendChild(el);
+    }
   }
 
   function konfetti() {
     var boks = document.getElementById('konfettiStjerner');
     boks.innerHTML = '';
-    for (var i = 0; i < 55; i++) {
+    for (var i = 0; i < 90; i++) {
       var b = document.createElement('i');
+      if (Math.random() < 0.4) b.className = 'stjerneform';
       b.style.left = (Math.random() * 100) + '%';
       b.style.background = Spill.FARGER[i % Spill.FARGER.length].kode;
-      b.style.animationDelay = (Math.random() * 1.1).toFixed(2) + 's';
-      b.style.animationDuration = (2 + Math.random() * 1.6).toFixed(2) + 's';
-      b.style.transform = 'scale(' + (0.6 + Math.random() * 0.8).toFixed(2) + ')';
+      b.style.animationDelay = (Math.random() * 1.3).toFixed(2) + 's';
+      b.style.animationDuration = (2 + Math.random() * 1.8).toFixed(2) + 's';
+      b.style.transform = 'scale(' + (0.6 + Math.random() * 0.9).toFixed(2) + ')';
       boks.appendChild(b);
     }
-  }
-
-  /* ---------- nivåvelger ---------- */
-
-  var velger = document.getElementById('velgerStjerner');
-
-  function visVelger() {
-    var liste = document.getElementById('nivaalisteStjerner');
-    liste.innerHTML = '';
-    var antall = Math.max(30, Felles.data.stjerner.opplaast + 5);
-    for (var n = 1; n <= antall; n++) {
-      var b = document.createElement('button');
-      b.className = 'nivaaknapp';
-      b.textContent = n;
-      if (n < Felles.data.stjerner.opplaast) b.classList.add('klart');
-      if (n === tilstand.nivaa) b.classList.add('naa');
-      if (n > Felles.data.stjerner.opplaast) {
-        b.classList.add('laast');
-        b.disabled = true;
-        b.innerHTML = '<svg viewBox="0 0 18 18"><rect x="4" y="8" width="10" height="8" rx="2" fill="none" stroke="#9fb3d6" stroke-width="2"/><path d="M6,8 V5 a3,3 0 0 1 6,0 v3" fill="none" stroke="#9fb3d6" stroke-width="2"/></svg>';
-      } else {
-        (function (m) {
-          b.addEventListener('click', function () {
-            velger.classList.add('skjult');
-            startNivaa(m);
-          });
-        })(n);
-      }
-      liste.appendChild(b);
-    }
-    velger.classList.remove('skjult');
-    var naa = liste.querySelector('.naa');
-    if (naa) liste.scrollTop = Math.max(0, naa.offsetTop - liste.clientHeight / 2);
   }
 
   /* ---------- knapper ---------- */
@@ -338,27 +357,18 @@ var AppStjerner = (function () {
   document.getElementById('knappAngreStjerner').addEventListener('click', angre);
   document.getElementById('knappHintStjerner').addEventListener('click', hint);
   document.getElementById('knappStartPaaNyttStjerner').addEventListener('click', startPaaNytt);
-  document.getElementById('knappNivaaerStjerner').addEventListener('click', visVelger);
-  document.getElementById('knappLukkVelgerStjerner').addEventListener('click', function () {
-    velger.classList.add('skjult');
-  });
-  document.getElementById('knappNesteStjerner').addEventListener('click', function () {
+  document.getElementById('knappTilbakeSpill').addEventListener('click', function () {
     seier.classList.add('skjult');
-    startNivaa(tilstand.nivaa + 1);
+    apneGrid();
   });
-  document.getElementById('knappOmIgjenStjerner').addEventListener('click', function () {
+  document.getElementById('knappSpillIgjenStjerner').addEventListener('click', function () {
     seier.classList.add('skjult');
-    startNivaa(tilstand.nivaa);
+    startTegn(tilstand.tegnId);
+  });
+  document.getElementById('knappNyttTegnStjerner').addEventListener('click', function () {
+    seier.classList.add('skjult');
+    apneGrid();
   });
 
-  /* ---------- åpning ---------- */
-
-  function apne() {
-    if (!initialisert) {
-      initialisert = true;
-      startNivaa(Felles.data.stjerner.sisteNivaa);
-    }
-  }
-
-  return { apne: apne };
+  return { apneGrid: apneGrid };
 })();

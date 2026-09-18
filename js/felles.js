@@ -10,7 +10,7 @@ var Felles = (function () {
   var data = {
     lyd: true,
     drivstoff: { opplaast: 1, sisteNivaa: 1 },
-    stjerner: { opplaast: 1, sisteNivaa: 1 }
+    stjerner: { fullfort: {} }
   };
 
   function lastData() {
@@ -20,12 +20,13 @@ var Felles = (function () {
       var d = JSON.parse(raa);
       if (!d || typeof d !== 'object') return;
       data.lyd = d.lyd !== false;
-      ['drivstoff', 'stjerner'].forEach(function (spill) {
-        if (d[spill]) {
-          data[spill].opplaast = Math.max(1, d[spill].opplaast | 0);
-          data[spill].sisteNivaa = Math.max(1, d[spill].sisteNivaa | 0);
-        }
-      });
+      if (d.drivstoff) {
+        data.drivstoff.opplaast = Math.max(1, d.drivstoff.opplaast | 0);
+        data.drivstoff.sisteNivaa = Math.max(1, d.drivstoff.sisteNivaa | 0);
+      }
+      if (d.stjerner && d.stjerner.fullfort && typeof d.stjerner.fullfort === 'object') {
+        data.stjerner.fullfort = d.stjerner.fullfort;
+      }
     } catch (e) { /* privat modus eller file:// – vi klarer oss uten */ }
   }
 
@@ -79,6 +80,26 @@ var Felles = (function () {
       tone(1319, 0.55, 0.5, 0.15, 'triangle');
     }
   };
+
+  /* ---------- stemme ---------- */
+
+  // Leser opp en tekst på norsk, om nettleseren støtter det. Velger en
+  // norsk stemme om en finnes, ellers faller den tilbake på standarden.
+  function siNavn(tekst) {
+    if (!('speechSynthesis' in window) || !data.lyd) return;
+    try {
+      var u = new SpeechSynthesisUtterance(tekst);
+      u.lang = 'nb-NO';
+      u.rate = 0.88;
+      u.pitch = 1.05;
+      var stemmer = speechSynthesis.getVoices();
+      var norsk = stemmer.filter(function (v) {
+        return v.lang && (v.lang.toLowerCase().indexOf('nb') === 0 || v.lang.toLowerCase().indexOf('no') === 0);
+      });
+      if (norsk.length) u.voice = norsk[0];
+      speechSynthesis.speak(u);
+    } catch (e) { /* ingen talestøtte – da sier vi ingenting */ }
+  }
 
   /* ---------- tilfeldighet ---------- */
 
@@ -147,6 +168,7 @@ var Felles = (function () {
     data: data,
     lagreData: lagreData,
     Lyd: Lyd,
+    siNavn: siNavn,
     lagTilfeldig: lagTilfeldig,
     stokk: stokk,
     juster: juster,
