@@ -34,7 +34,7 @@ var AppStjerner = (function () {
 
   var elPunkter = [], elStjerner = {};
 
-  Felles.lagGemDefs(Spill.FARGER);
+  Felles.lagGemDefs(Spill.FARGER, 'stjerner');
 
   function glimtSvg(cx, cy, forsinkelse) {
     return '<path class="glimt" style="animation-delay:' + forsinkelse + 's" transform="translate(' + cx + ',' + cy + ')" d="' + GLIMT + '" fill="#ffffff"/>';
@@ -142,16 +142,16 @@ var AppStjerner = (function () {
     });
     tilstand.punkter.forEach(function (p, i) {
       if (p.fylt) {
-        html += '<g class="punkt punkt-fylt" transform="translate(' + p.x + ',' + p.y + ')">' +
-          '<path d="' + GEM + '" fill="url(#gem-' + p.farge + ')" style="filter: drop-shadow(0 0 5px rgba(255,255,255,.5))"/>' +
+        html += '<g class="punkt punkt-fylt" transform="translate(' + p.x + ',' + p.y + ') scale(0.72)">' +
+          '<path d="' + GEM + '" fill="url(#gem-stjerner-' + p.farge + ')" style="filter: drop-shadow(0 0 3px rgba(255,255,255,.35))"/>' +
           glimtSvg(-4, -4, (i % 5) * 0.3) +
           '</g>';
       } else {
         var farge = Spill.FARGER[p.farge];
         html += '<g class="punkt punkt-tom" data-i="' + i + '" transform="translate(' + p.x + ',' + p.y + ')">' +
-          '<circle class="traff" r="16"/>' +
-          '<circle class="slot" r="9" style="stroke:' + farge.kode + ';fill:' + farge.kode + '30"/>' +
-          '<circle class="slot-kjerne" r="3.2" fill="' + farge.kode + '"/>' +
+          '<circle class="traff" r="13"/>' +
+          '<circle class="slot" r="7" style="stroke:' + farge.kode + ';fill:' + farge.kode + '30"/>' +
+          '<circle class="slot-kjerne" r="2.4" fill="' + farge.kode + '"/>' +
           '</g>';
       }
     });
@@ -180,7 +180,7 @@ var AppStjerner = (function () {
       el.setAttribute('role', 'button');
       el.setAttribute('tabindex', '0');
       el.setAttribute('aria-label', Spill.FARGER[st.farge].navn + ' stjerne');
-      el.innerHTML = '<path d="' + GEM + '" fill="url(#gem-' + st.farge + ')" style="filter: drop-shadow(0 0 4px rgba(255,255,255,.5))"/>' +
+      el.innerHTML = '<path d="' + GEM + '" fill="url(#gem-stjerner-' + st.farge + ')" style="filter: drop-shadow(0 0 2.5px rgba(255,255,255,.35))"/>' +
         glimtSvg(-4, -4, (idx % 5) * 0.3);
       el.addEventListener('click', function () { klikkStjerne(st.id); });
       el.addEventListener('keydown', function (e) {

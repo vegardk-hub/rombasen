@@ -141,18 +141,22 @@ var Felles = (function () {
   }
 
   // Lager ett radialGradient-par (høylys/base/kjerneskygge) per farge, én
-  // gang, slik at spillene kan referere til dem med fill="url(#gem-N)".
-  function lagGemDefs(farger) {
-    if (document.getElementById('gemDefs')) return;
+  // gang per spill, slik at spillet kan referere til dem med
+  // fill="url(#gem-<prefiks>-N)". Prefikset holder de to spillenes
+  // fargelister fra hverandre – ellers ville den som lastet først
+  // (drivstoffets ti farger) stjålet id-ene fra stjernenes to.
+  function lagGemDefs(farger, prefiks) {
+    var svgId = 'gemDefs-' + prefiks;
+    if (document.getElementById(svgId)) return;
     var svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
-    svg.setAttribute('id', 'gemDefs');
+    svg.setAttribute('id', svgId);
     svg.setAttribute('style', 'position:absolute;width:0;height:0;overflow:hidden');
     var defs = document.createElementNS('http://www.w3.org/2000/svg', 'defs');
     farger.forEach(function (f, i) {
       var grad = document.createElementNS('http://www.w3.org/2000/svg', 'radialGradient');
-      grad.setAttribute('id', 'gem-' + i);
+      grad.setAttribute('id', 'gem-' + prefiks + '-' + i);
       grad.setAttribute('cx', '34%'); grad.setAttribute('cy', '28%'); grad.setAttribute('r', '75%');
-      [[0, juster(f.lys, 0.55)], [45, f.lys], [100, juster(f.kode, -0.28)]].forEach(function (s) {
+      [[0, juster(f.lys, 0.25)], [35, f.kode], [100, juster(f.kode, -0.35)]].forEach(function (s) {
         var stop = document.createElementNS('http://www.w3.org/2000/svg', 'stop');
         stop.setAttribute('offset', s[0] + '%');
         stop.setAttribute('stop-color', s[1]);

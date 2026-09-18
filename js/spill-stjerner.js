@@ -10,9 +10,9 @@
 
 var SpillStjerner = (function () {
 
-  // Seks farger, hentet fra samme palett som drivstoffet – blå er
-  // fortsatt den vi ser mest av, resten gir variasjon å holde styr på.
-  var FARGER = [0, 1, 2, 3, 4, 6].map(function (i) { return SpillDrivstoff.FARGER[i]; });
+  // To farger holder styr på seg selv bedre enn mange – blå er
+  // fortsatt hovedfargen, gull er den som skiller seg tydeligst fra den.
+  var FARGER = [0, 2].map(function (i) { return SpillDrivstoff.FARGER[i]; });
 
   // Punktene er lagt så nært den virkelige stjernefiguren som en enkel
   // strektegning tillater – de kjente linjemønstrene astronomibøker
@@ -32,11 +32,14 @@ var SpillStjerner = (function () {
       strok: [[0, 1, 2, 3, 4], [0, 5, 6], [4, 7, 8]]
     },
     {
-      // Tvillingene: to hoder tett sammen øverst, kropp ned, bein som deler seg
+      // Tvillingene: 17 stjerner, liggende på skrå – to hoder tett sammen
+      // øverst til høyre, kroppene ned mot venstre, bein som deler seg
       id: 'tvillingene', navn: 'Tvillingene',
-      punkter: [[88, 28], [116, 33], [80, 64], [128, 68], [75, 103], [138, 108],
-                [55, 138], [153, 143], [38, 168], [163, 173], [68, 172], [138, 168]],
-      strok: [[0, 2, 4, 6, 8], [6, 10], [1, 3, 5, 7, 9], [7, 11], [2, 3]]
+      punkter: [[124, 25], [113, 24], [142, 36], [151, 44], [111, 47], [134, 62],
+                [116, 67], [96, 71], [127, 90], [76, 93], [123, 120], [54, 110],
+                [123, 147], [75, 125], [98, 140], [126, 162], [47, 102]],
+      strok: [[1, 0, 4], [3, 2, 5], [4, 5], [4, 6], [5, 6], [6, 7], [6, 8],
+               [7, 9, 11, 16], [9, 13], [8, 10, 12, 15], [10, 14]]
     },
     {
       // Krepsen: svak, enkel Y-form rundt Krybben-stjernehopen

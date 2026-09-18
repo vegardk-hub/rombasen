@@ -374,7 +374,7 @@ h1, h2, .titteltekst, .knappetekst, .nivaamerke strong {
 }
 
 .stjerne {
-  width: 46px; height: 46px;
+  width: 34px; height: 34px;
   cursor: pointer;
   transition: transform 0.18s cubic-bezier(0.34, 1.4, 0.5, 1), opacity 0.2s ease;
   filter: drop-shadow(0 6px 6px rgba(0, 0, 0, 0.35));
@@ -388,7 +388,7 @@ h1, h2, .titteltekst, .knappetekst, .nivaamerke strong {
   position: fixed;
   z-index: 60;
   pointer-events: none;
-  width: 46px; height: 46px;
+  width: 34px; height: 34px;
   transition: left 0.36s cubic-bezier(0.4, 0.1, 0.3, 1), top 0.36s cubic-bezier(0.4, 0.1, 0.3, 1), transform 0.36s ease, opacity 0.2s ease 0.3s;
 }
 

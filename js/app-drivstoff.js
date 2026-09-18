@@ -28,8 +28,6 @@ var AppDrivstoff = (function () {
   var brett = document.getElementById('brettDrivstoff');
   var elTanker = [], elVaeske = [];
 
-  Felles.lagGemDefs(Spill.FARGER);
-
   /* ---------- oppsett av nivå ---------- */
 
   function startNivaa(n) {
