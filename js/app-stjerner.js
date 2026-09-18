@@ -40,19 +40,42 @@ var AppStjerner = (function () {
     return '<path class="glimt" style="animation-delay:' + forsinkelse + 's" transform="translate(' + cx + ',' + cy + ')" d="' + GLIMT + '" fill="#ffffff"/>';
   }
 
+  // Svak bakgrunnsstøv av små stjerner, som på et ekte stjernekart – samme
+  // sett hver gang for et gitt tegn, så det ikke "hopper" ved ny tegning.
+  function bakgrunnsstjerner(seed) {
+    var tilfeldig = Felles.lagTilfeldig(seed);
+    var svg = '';
+    for (var i = 0; i < 55; i++) {
+      var x = (tilfeldig() * 200).toFixed(1);
+      var y = (tilfeldig() * 200).toFixed(1);
+      var r = (0.5 + tilfeldig() * 1.1).toFixed(2);
+      var o = (0.25 + tilfeldig() * 0.55).toFixed(2);
+      svg += '<circle class="dust" cx="' + x + '" cy="' + y + '" r="' + r + '" style="fill:#ffffff;opacity:' + o + '"/>';
+    }
+    return svg;
+  }
+
   /* ================= rutenett ================= */
 
   function tegnMiniSvg(tegn) {
-    var svg = '<svg viewBox="0 0 200 200" class="tegn-mini" aria-hidden="true">';
+    var svg = '<svg viewBox="0 0 200 200" class="tegn-mini" aria-hidden="true">' +
+      '<rect width="200" height="200" fill="#000000"/>' +
+      bakgrunnsstjerner(hashKode(tegn.id));
     tegn.strok.forEach(function (kjede) {
       var pts = kjede.map(function (i) { return tegn.punkter[i][0] + ',' + tegn.punkter[i][1]; }).join(' ');
       svg += '<polyline points="' + pts + '"/>';
     });
     tegn.punkter.forEach(function (p) {
-      svg += '<circle cx="' + p[0] + '" cy="' + p[1] + '" r="7"/>';
+      svg += '<circle cx="' + p[0] + '" cy="' + p[1] + '" r="6.5"/>';
     });
     svg += '</svg>';
     return svg;
+  }
+
+  function hashKode(tekst) {
+    var h = 0;
+    for (var i = 0; i < tekst.length; i++) h = (h * 31 + tekst.charCodeAt(i)) >>> 0;
+    return h;
   }
 
   function tegnGrid() {
@@ -107,7 +130,9 @@ var AppStjerner = (function () {
   }
 
   function lagKonstellasjonSvg() {
-    var html = '<svg viewBox="0 0 200 200" class="konst-svg" aria-hidden="true">';
+    var html = '<svg viewBox="0 0 200 200" class="konst-svg" aria-hidden="true">' +
+      '<rect width="200" height="200" fill="#000000"/>' +
+      bakgrunnsstjerner(hashKode(tilstand.tegnId) + 1);
     tilstand.strok.forEach(function (kjede) {
       var pts = kjede.map(function (i) {
         var p = tilstand.punkter[i];
@@ -122,9 +147,11 @@ var AppStjerner = (function () {
           glimtSvg(-4, -4, (i % 5) * 0.3) +
           '</g>';
       } else {
+        var farge = Spill.FARGER[p.farge];
         html += '<g class="punkt punkt-tom" data-i="' + i + '" transform="translate(' + p.x + ',' + p.y + ')">' +
           '<circle class="traff" r="16"/>' +
-          '<circle class="slot" r="9"/>' +
+          '<circle class="slot" r="9" style="stroke:' + farge.kode + ';fill:' + farge.kode + '30"/>' +
+          '<circle class="slot-kjerne" r="3.2" fill="' + farge.kode + '"/>' +
           '</g>';
       }
     });
